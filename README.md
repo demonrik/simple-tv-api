@@ -11,10 +11,11 @@ This is intended to be run in a hidden folder inside your TV shows directory.
 eg: /home/you/TV Shows/.simple-tv-api/download.py  
 If Show and Season folders do not exist the script will make them.   
   
-Please set auto-login details in download.py before first run for proper auto-completion.  
+Please set auto-login details in download.py before first run for proper auto-completion.    
   
-For regular use, change AUTO_DELETE to True so you don't re-download all recordings everytime script is run.  
-Be sure to test downloads are working before turning this on so you don't lose your recordings.
+Script will check if you've downloaded the recording already and skips the file if so.
+  
+Be sure to test downloads are working before turning AUTO_DELETE on so you don't lose your recordings.
 
 Example usage:
 
