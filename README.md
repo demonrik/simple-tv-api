@@ -5,7 +5,16 @@ This is an api for accessing and playing back Simple.tv recordings.
 Downloading Recordings
 ======================
 
-This is an interactive python script used to download recordings from your simple.tv device to your local computer. Recordings are placed in the current directory with the name 'episode.ts'.
+This is an automated python script used to download all recordings from your simple.tv device to your local computer. Recordings are placed in the parent directory with the name /[Show]/[Season XX]/'show - SXXEYY- [title].mp4'.  
+  
+This is intended to be run in a hidden folder inside your TV shows directory. 
+eg: /home/you/TV Shows/.simple-tv-api/download.py
+Show and Season folders for downloading episodes *must* already exist or the script will fail.   
+  
+Please set auto-login details in download.py before first run for proper auto-completion.  
+  
+For regular use, change AUTO_DELETE to True so you don't re-download all recordings everytime script is run.  
+Be sure to test downloads are working before turning this on so you don't lose your recordings.
 
 Example usage:
 
