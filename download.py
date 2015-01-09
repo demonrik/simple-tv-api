@@ -105,7 +105,7 @@ def download_episode(show, episode):
           http.request('DELETE', url, headers=headers)  # Gives a SSL Cert error. Not sure why..? Need to add 'assert_hostnam$
           print "[" + episode['filename'] + "] deleted from Simple.TV"
     else:
-      print "[" + episode['filename'] + "] already exists, skipping"
+      print "File already exists, skipping"
 
 
 
