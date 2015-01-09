@@ -55,7 +55,16 @@ def generate_filename_menu(episodes, show):
             else:
                 episode['filename'] = show['name']
         else:
-            # Display season and episode numbers
+            episode['season'] = str(episode['season']).zfill(2)         # Pad with leading 0 if < 10
+            showdir = "../{name}/Season {season}/".format(
+                name=show['name'],
+                season=episode['season']
+                )
+            try:
+                os.makedirs(showdir)
+            except OSError:
+                pass
+             # Display season and episode numbers
             episode['season'] = str(episode['season']).zfill(2)         # Pad with leading 0 if < 10
             episode['episode'] = str(episode['episode']).zfill(2)        # Pad with leading 0 if < 10
             episode['filename'] = "../{name}/Season {season}/{name} - S{season}E{episode} - {title}".format(
@@ -64,13 +73,12 @@ def generate_filename_menu(episodes, show):
                 episode=episode['episode'],
                 title=episode['title']
                 )
-        episode['filename'] = episode['filename'] + "[" + episode['channel'] + "]"
-        episode['filename'] = episode['filename'].replace(":", "-")
-        episode['filename'] = episode['filename'].replace("'", "")
-        print str(val) + ": " + episode['filename'].encode('utf-8')
+            episode['filename'] = episode['filename'].replace(":", "-")
+            episode['filename'] = episode['filename'].replace("'", "")
+            print str(val) + ": " + episode['filename'].encode('utf-8')
     return episodes
-
-
+    
+    
 def download_episode(show, episode):
     instance_id = episode['instance_id']
     item_id = episode['item_id']
