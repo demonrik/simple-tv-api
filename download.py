@@ -16,7 +16,7 @@ def select_show():
         # Only display shows with recordings (>0)
         if int(show['recordings']) != 0:
             print str(val) + ": " + show['name'].encode('utf-8') + " [" + show['recordings'] + " episodes]"
-    show_id = raw_input("Select show (#): ")
+    show_id = ''#raw_input("Select show (#): ")
     print "-" * 25
     if show_id.lower() == 'a' or show_id == '':
         print "Download all shows, all episodes"
@@ -119,5 +119,5 @@ if __name__ == "__main__":
     simple = api.SimpleTV(username, password)
 
     # Loop back to main menu
-    while True:
-        select_show()
+    #while True:
+    select_show()
