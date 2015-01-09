@@ -58,7 +58,7 @@ def generate_filename_menu(episodes, show):
             # Display season and episode numbers
             episode['season'] = str(episode['season']).zfill(2)         # Pad with leading 0 if < 10
             episode['episode'] = str(episode['episode']).zfill(2)        # Pad with leading 0 if < 10
-            episode['filename'] = "{name} - S{season}E{episode} - {title}".format(
+            episode['filename'] = "../{name}/Season {season}/{name} - S{season}E{episode} - {title}".format(
                 name=show['name'],
                 season=episode['season'],
                 episode=episode['episode'],
