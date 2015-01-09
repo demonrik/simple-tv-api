@@ -82,27 +82,31 @@ def generate_filename_menu(episodes, show):
 def download_episode(show, episode):
     instance_id = episode['instance_id']
     item_id = episode['item_id']
-    quality = 0
+    quality = 2
     group_id = show['group_id']
     file_name = episode['filename'] + '.mp4'
 
-    url = simple.retrieve_episode_mp4(group_id, instance_id, item_id, quality)
-    print "Downloading " + file_name
-    (filename, headers) = urllib.urlretrieve(url, file_name)
-    file_size = os.path.getsize(file_name) >> 20
-    print "File size: ", file_size , "MB"
-    download_complete_bool = True if file_size > 20 else False
-    print "download_complete_bool: " , download_complete_bool
-    if AUTO_DELETE and download_complete_bool:
-        url = "https://stv-p-api1-prod.rsslabs.net/content/actionjson/mediaserver/"
-        url += simple.sid
-        url += "/instance/"
-        url += instance_id
-        url += "?filetype=all"
-        http = urllib3.PoolManager()
-        headers = urllib3.util.make_headers(basic_auth=username + ":" + password)
-        http.request('DELETE', url, headers=headers)  # Gives a SSL Cert error. Not sure why..? Need to add 'assert_hostname=False' perhaps?
-        print "[" + episode['filename'] + "] deleted from Simple.TV"
+    if not os.path.exists(file_name):
+      url = simple.retrieve_episode_mp4(group_id, instance_id, item_id, quality)
+      print "Downloading " + file_name
+      (filename, headers) = urllib.urlretrieve(url, file_name)
+      file_size = os.path.getsize(file_name) >> 20
+      print "File size: ", file_size , "MB"
+      download_complete_bool = True if file_size > 20 else False
+      print "download_complete_bool: " , download_complete_bool
+      if AUTO_DELETE and download_complete_bool:
+          url = "https://stv-p-api1-prod.rsslabs.net/content/actionjson/mediaserver/"
+          url += simple.sid
+          url += "/instance/"
+          url += instance_id
+          url += "?filetype=all"
+          http = urllib3.PoolManager()
+          headers = urllib3.util.make_headers(basic_auth=username + ":" + password)
+          http.request('DELETE', url, headers=headers)  # Gives a SSL Cert error. Not sure why..? Need to add 'assert_hostnam$
+          print "[" + episode['filename'] + "] deleted from Simple.TV"
+    else:
+      print "[" + episode['filename'] + "] already exists, skipping"
+
 
 
 def download_all_shows(shows):
