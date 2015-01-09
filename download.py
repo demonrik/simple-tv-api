@@ -74,7 +74,7 @@ def generate_filename_menu(episodes, show):
 def download_episode(show, episode):
     instance_id = episode['instance_id']
     item_id = episode['item_id']
-    quality = 2
+    quality = 0
     group_id = show['group_id']
     file_name = episode['filename'] + '.mp4'
 
