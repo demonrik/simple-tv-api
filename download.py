@@ -7,8 +7,8 @@ import os
 # Edit this for Auto-login
 # USERNAME = ""
 # PASSWORD = ""
+# DVR = ""
 AUTO_DELETE = False
-
 
 def select_show():
     shows = simple.get_shows()
@@ -88,6 +88,13 @@ def download_episode(show, episode):
 
     if not os.path.exists(file_name):
       url = simple.retrieve_episode_mp4(group_id, instance_id, item_id, quality)
+      if not url:
+          print "Unable to retrieve URL for " \
+                + show['name'] + " " \
+                + episode['season'] + " " \
+                + episode['episode'] + \
+                ". Skipping..."
+          return
       print "Downloading " + file_name
       (filename, headers) = urllib.urlretrieve(url, file_name)
       file_size = os.path.getsize(file_name) >> 20
@@ -108,7 +115,6 @@ def download_episode(show, episode):
       print "File already exists, skipping..."
 
 
-
 def download_all_shows(shows):
     for val, show in enumerate(shows):
         show = shows[val]
@@ -125,10 +131,11 @@ def download_all_shows(shows):
 if __name__ == "__main__":
     username = USERNAME if 'USERNAME' in locals() else raw_input("Enter email: ")
     password = PASSWORD if 'PASSWORD' in locals() else getpass.getpass("Enter password: ")
+    dvr = DVR if 'DVR' in locals() else raw_input("DVR Name (Blank for default): ")
     print "Logging in...\n"
     print "Auto Delete set to {}, this can be changed in the settings section of download.py".format(str(AUTO_DELETE))
     print "-" * 25
-    simple = api.SimpleTV(username, password)
+    simple = api.SimpleTV(username, password, dvr)
 
     # Loop back to main menu
     #while True:
