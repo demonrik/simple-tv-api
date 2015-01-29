@@ -145,7 +145,6 @@ class SimpleTV:
         url += '&itemID=' + item_id
         url += '&isReachedLocally=' + ("False" if self.remote else "True")
 
-        print "Verify: " + group_id + " " + instance_id + " " + item_id
         r = self.s.get(url)
         soup = BeautifulSoup(r.text)
         s = soup.find('div', {'id': 'video-player-large'})
@@ -154,7 +153,6 @@ class SimpleTV:
         else:
             base = self.local_base
         req_url = base + s['data-streamlocation']
-        print "Verify: " + req_url
         stream_base = "/".join(req_url.split('/')[:-1]) + "/"
         # Get urls for different qualities
         # First time through, autodetect if remote
