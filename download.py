@@ -5,10 +5,6 @@ import urllib3
 import os
 import ConfigParser
 
-# Edit this for Auto-login
-# USERNAME = ""
-# PASSWORD = ""
-# DVR = ""
 AUTO_DELETE = False
 
 stv_sync_list = {}
@@ -186,14 +182,3 @@ if __name__ == "__main__":
     	  select_show();
     	  del simple
     	  
-    #username = USERNAME if 'USERNAME' in locals() else raw_input("Enter email: ")
-    #password = PASSWORD if 'PASSWORD' in locals() else getpass.getpass("Enter password: ")
-    #dvr = DVR if 'DVR' in locals() else raw_input("DVR Name (Blank for default): ")
-    #print "Logging in...\n"
-    #print "Auto Delete set to {}, this can be changed in the settings section of download.py".format(str(AUTO_DELETE))
-    #print "-" * 25
-    #simple = api.SimpleTV(username, password, dvr)
-    
-    # Loop back to main menu
-    #while True:
-    #select_show()
