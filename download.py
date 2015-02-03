@@ -4,15 +4,14 @@ import urllib
 import urllib3
 import os
 import ConfigParser
+import argparse
 
 AUTO_DELETE = False
 
 stv_sync_list = {}
 stv_skip_list = {}
-user_list = {}
 
-
-def select_show():
+def select_show(stv):
     shows = simple.get_shows()
     for val, show in enumerate(shows):
         # Only display shows with recordings (>0)
@@ -22,7 +21,7 @@ def select_show():
     print "-" * 25
     if show_id.lower() == 'a' or show_id == '':
         print "Download all shows, all episodes"
-        download_all_shows(shows)
+        download_all_shows(shows,stv)
     else:                # Specific show selected, pass that along to select_episode
         show = shows[int(show_id)]
         select_episode(show)
@@ -52,10 +51,24 @@ def generate_filename_menu(episodes, show):
     for val, episode in enumerate(episodes):
         # Does not have Series / Episode numbers (probably a movie)
         if episode['season'] == 0:
+            #Probably a movie, or special without any season info
+            #create a dir for this special and place the file in it.
+            showdir = '../{name}/'.format(name=show['name'])
+            try:
+                os.makedirs(showdir)
+            except OSError:
+                pass
+
             if show['name'] != episode['title']:
-                episode['filename'] = show['name'] + " - " + episode['title'].encode('utf-8')
+                episode['filename'] = "../{showname}/{name} - {title}".format(
+                    showname=show['name'],
+                    name=show['name'],
+                    title=episode['title'])
             else:
-                episode['filename'] = show['name']
+                episode['filename'] = "../{showname}/{name}".format(
+                    showname=show['name'],
+                    name=show['name'])
+
         else:
             episode['season'] = str(episode['season']).zfill(2)         # Pad with leading 0 if < 10
             showdir = "../{name}/Season {season}/".format(
@@ -76,7 +89,6 @@ def generate_filename_menu(episodes, show):
                 title=episode['title']
                 )
             episode['filename'] = episode['filename'].replace(":", "-")
-            episode['filename'] = episode['filename'].replace("'", "")
             print str(val) + ": " + episode['filename'].encode('utf-8')
     return episodes
     
@@ -116,10 +128,19 @@ def download_episode(show, episode):
     else:
       print "File already exists, skipping..."
 
+def is_show_skipped(show, stv):
+    shows2skip = stv_sync_list[stv]['shows2skip'].split(',')
+    for shows in shows2skip:
+        if show['name'] == shows.replace('"',''):
+            return True
+    return False
 
-def download_all_shows(shows):
+def download_all_shows(shows,stv):
     for val, show in enumerate(shows):
         show = shows[val]
+        if is_show_skipped(show, stv): 
+            print "Skipping " + show['name'] + ": [ID]-" + show['group_id']
+            continue
         # Only download shows with recordings
         if int(show['recordings']) != 0:
             print "\nDownloading " + show['name']
@@ -138,47 +159,56 @@ def parse_config_file(configFile):
 
     # Parse out the config info from the config file
     for section_name in config.sections():
-    	  sections[section_name] = {}
-    	  for name, value in config.items(section_name):
-    	  	  sections[section_name][name] = value
+        sections[section_name] = {}
+        for name, value in config.items(section_name):
+            sections[section_name][name] = value
 
     # Process the parent section - which DVRs to SYNC or SKIP    
     if 'STVAPI' in sections.keys():
 
-    	  #Build up info on each STV to process
-    	  dvr_list = sections['STVAPI']['dvr2sync'].split(',')
-    	  for n in range(0,len(dvr_list)):
-    	      if dvr_list[n] in sections.keys():
-    	          stv_sync_list[dvr_list[n]] = {}
-    	          if sections[dvr_list[n]]['dvrlogin'] in sections.keys():
-    	          	  stv_sync_list[dvr_list[n]]['user'] = sections[sections[dvr_list[n]]['dvrlogin']]['username']
-    	          	  stv_sync_list[dvr_list[n]]['pass'] = sections[sections[dvr_list[n]]['dvrlogin']]['password']
+        #Build up info on each STV to process
+        dvr_list = sections['STVAPI']['dvr2sync'].split(',')
+        for n in range(0,len(dvr_list)):
+            if dvr_list[n] in sections.keys():
+                stv_sync_list[dvr_list[n]] = {}
+                stv_sync_list[dvr_list[n]]['shows2skip'] = sections[dvr_list[n]]['shows2skip']
+                if sections[dvr_list[n]]['dvrlogin'] in sections.keys():
+                    stv_sync_list[dvr_list[n]]['user'] = sections[sections[dvr_list[n]]['dvrlogin']]['username']
+                    stv_sync_list[dvr_list[n]]['pass'] = sections[sections[dvr_list[n]]['dvrlogin']]['password']
 
-    	  #Do the same for the DVRs to skip
-    	  dvr_list = sections['STVAPI']['dvr2skip'].split(',')
-    	  for n in range(0,len(dvr_list)):
-    	      if dvr_list[n] in sections.keys():
-    	          stv_skip_list[dvr_list[n]] = {}
-    	          if sections[dvr_list[n]]['dvrlogin'] in sections.keys():
-    	          	  stv_skip_list[dvr_list[n]]['user'] = sections[sections[dvr_list[n]]['dvrlogin']]['username']
-    	          	  stv_skip_list[dvr_list[n]]['pass'] = sections[sections[dvr_list[n]]['dvrlogin']]['password']
-    	          	  
+        #Do the same for the DVRs to skip
+        dvr_list = sections['STVAPI']['dvr2skip'].split(',')
+        for n in range(0,len(dvr_list)):
+            if dvr_list[n] in sections.keys():
+                stv_skip_list[dvr_list[n]] = {}
+                if sections[dvr_list[n]]['dvrlogin'] in sections.keys():
+                    stv_skip_list[dvr_list[n]]['user'] = sections[sections[dvr_list[n]]['dvrlogin']]['username']
+                    stv_skip_list[dvr_list[n]]['pass'] = sections[sections[dvr_list[n]]['dvrlogin']]['password']
+
     print 'Processing the following STVs'
     for n in stv_sync_list.keys():
         print n + ":" + stv_sync_list[n]['user'] + ":" + stv_sync_list[n]['pass']
-    	
-    print 'Skipping the following STVs'
+        print "skipping the following shows:" + stv_sync_list[n]['shows2skip']
     for n in stv_skip_list.keys():
         print n + ":" + stv_skip_list[n]['user'] + ":" + stv_skip_list[n]['pass']
 
 
 if __name__ == "__main__":
-    parse_config_file('stv-api.ini')
+    arg_parser = argparse.ArgumentParser(description='Process command line args')
+    arg_parser.add_argument('--config', 
+                            default='stv-api.ini',
+                            help='config file location')
+  
+    args = arg_parser.parse_args()
+    print args.config
+    
+    if args.config:
+        parse_config_file(args.config)
 
     # Loop through each DVR to process
     for stv in stv_sync_list.keys():
-    	  print "Logging in to " + stv + "...."
-    	  simple = api.SimpleTV(stv_sync_list[stv]['user'],stv_sync_list[stv]['pass'],stv)
-    	  select_show();
-    	  del simple
-    	  
+        print "Logging in to " + stv + "...."
+        simple = api.SimpleTV(stv_sync_list[stv]['user'],stv_sync_list[stv]['pass'],stv)
+        select_show(stv);
+        del simple
+      
