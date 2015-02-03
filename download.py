@@ -1,3 +1,10 @@
+#-------------------------------------------------------------------------------
+# This is an automated python script used to download recordings from your 
+# simple.tv device to your local computer. Recordings are placed in the 
+# directory specified through the command line or configuration file
+# with the name 'episode.mp4', under directories for the show and optionally
+# the season.
+#-------------------------------------------------------------------------------
 import getpass
 import api
 import urllib
@@ -8,8 +15,13 @@ import argparse
 
 AUTO_DELETE = False
 
+# Some global params to be used - am sure there is a better way to do these....
+stv_show_path = ""
 stv_sync_list = {}
 stv_skip_list = {}
+stv_args_list = ['--config','--store','--autodelete']
+stv_illegal_chars_list_cmn = [":"]
+stv_illegal_chars_list_win = ["|","/","?","<",">","*","\"","\\"]
 
 def select_show(stv):
     shows = simple.get_shows()
@@ -28,9 +40,7 @@ def select_show(stv):
 
 
 def select_episode(show):
-    """
-    Display list of episodes from show[] to choose form. BYPASSED by download_all_shows()
-    """
+    # Display list of episodes from show[] to choose form. BYPASSED by download_all_shows()
     group_id = show['group_id']
     episodes = simple.get_episodes(group_id)
     episodes = generate_filename_menu(episodes, show)
@@ -48,30 +58,32 @@ def select_episode(show):
 
 
 def generate_filename_menu(episodes, show):
+    global stv_show_path
     for val, episode in enumerate(episodes):
         # Does not have Series / Episode numbers (probably a movie)
         if episode['season'] == 0:
             #Probably a movie, or special without any season info
             #create a dir for this special and place the file in it.
-            showdir = '../{name}/'.format(name=show['name'])
+            showdir = stv_show_path + '{name}/'.format(name=show['name'])
             try:
                 os.makedirs(showdir)
             except OSError:
                 pass
 
             if show['name'] != episode['title']:
-                episode['filename'] = "../{showname}/{name} - {title}".format(
+                episode['filename'] = "{showname}/{name} - {title}".format(
                     showname=show['name'],
                     name=show['name'],
                     title=episode['title'])
             else:
-                episode['filename'] = "../{showname}/{name}".format(
+                episode['filename'] = "{showname}/{name}".format(
                     showname=show['name'],
                     name=show['name'])
+            # TODO: Need to replace all illegal chars depending on OS.
 
         else:
             episode['season'] = str(episode['season']).zfill(2)         # Pad with leading 0 if < 10
-            showdir = "../{name}/Season {season}/".format(
+            showdir = stv_show_path + "{name}/Season {season}/".format(
                 name=show['name'],
                 season=episode['season']
                 )
@@ -79,26 +91,28 @@ def generate_filename_menu(episodes, show):
                 os.makedirs(showdir)
             except OSError:
                 pass
-             # Display season and episode numbers
+            # Display season and episode numbers
             episode['season'] = str(episode['season']).zfill(2)         # Pad with leading 0 if < 10
             episode['episode'] = str(episode['episode']).zfill(2)        # Pad with leading 0 if < 10
-            episode['filename'] = "../{name}/Season {season}/{name} - S{season}E{episode} - {title}".format(
+            episode['filename'] = "{name}/Season {season}/{name} - S{season}E{episode} - {title}".format(
                 name=show['name'],
                 season=episode['season'],
                 episode=episode['episode'],
                 title=episode['title']
                 )
+            # TODO: Need to replace all illegal chars depending on OS.
             episode['filename'] = episode['filename'].replace(":", "-")
             print str(val) + ": " + episode['filename'].encode('utf-8')
     return episodes
     
     
 def download_episode(show, episode):
+    global stv_show_path
     instance_id = episode['instance_id']
     item_id = episode['item_id']
     quality = 0
     group_id = show['group_id']
-    file_name = episode['filename'] + '.mp4'
+    file_name = stv_show_path + episode['filename'] + '.mp4'
 
     if not os.path.exists(file_name):
       url = simple.retrieve_episode_mp4(group_id, instance_id, item_id, quality)
@@ -151,9 +165,12 @@ def download_all_shows(shows,stv):
                 episode = episodes[x]
                 download_episode(show, episode)
 
-def parse_config_file(configFile):
+def parse_config_file(args):
+    global stv_show_path
+    global stv_sync_list
+    global stv_skip_list
     config = ConfigParser.ConfigParser()
-    config.read(configFile)
+    config.read(args.config)
     
     sections = {}
 
@@ -187,24 +204,36 @@ def parse_config_file(configFile):
 
     print 'Processing the following STVs'
     for n in stv_sync_list.keys():
-        print n + ":" + stv_sync_list[n]['user'] + ":" + stv_sync_list[n]['pass']
-        print "skipping the following shows:" + stv_sync_list[n]['shows2skip']
+        print n
+        print "Skipping the following shows:" + stv_sync_list[n]['shows2skip']
     for n in stv_skip_list.keys():
-        print n + ":" + stv_skip_list[n]['user'] + ":" + stv_skip_list[n]['pass']
+        print n
+        
+    if sections['STVAPI']['store']:
+        # First lets see if it was passed on the command line
+        if args.store:
+            stv_show_path = args.store
+        else:
+            stv_show_path = sections['STVAPI']['store']
+        #ensure we have trailing path seperator
+        if not stv_show_path.endswith(os.sep):
+            stv_show_path+=os.sep
+        print "Storing to - " + stv_show_path
 
 
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(description='Process command line args')
-    arg_parser.add_argument('--config', 
-                            default='stv-api.ini',
-                            help='config file location')
+    for n in stv_args_list:
+        arg_parser.add_argument(n)
   
     args = arg_parser.parse_args()
-    print args.config
-    
     if args.config:
-        parse_config_file(args.config)
+        if os.path.exists(args.config): 
+            parse_config_file(args)
+        else:
+            print "Config file specified not found - " + args.config
 
+    print "Saving to " + stv_show_path
     # Loop through each DVR to process
     for stv in stv_sync_list.keys():
         print "Logging in to " + stv + "...."
