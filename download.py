@@ -19,7 +19,7 @@ AUTO_DELETE = False
 stv_show_path = ""
 stv_sync_list = {}
 stv_skip_list = {}
-stv_args_list = ['--config','--store','--autodelete']
+stv_args_list = ['--config','--store','--autodelete','--interactive']
 stv_illegal_chars_list_cmn = [":"]
 stv_illegal_chars_list_win = ["|","/","?","<",">","*","\"","\\"]
 
@@ -143,10 +143,11 @@ def download_episode(show, episode):
       print "File already exists, skipping..."
 
 def is_show_skipped(show, stv):
-    shows2skip = stv_sync_list[stv]['shows2skip'].split(',')
-    for shows in shows2skip:
-        if show['name'] == shows.replace('"',''):
-            return True
+    if stv_sync_list[stv]['shows2skip']:
+        shows2skip = stv_sync_list[stv]['shows2skip'].split(',')
+        for shows in shows2skip:
+            if show['name'] == shows.replace('"',''):
+                return True
     return False
 
 def download_all_shows(shows,stv):
@@ -165,12 +166,15 @@ def download_all_shows(shows,stv):
                 episode = episodes[x]
                 download_episode(show, episode)
 
-def parse_config_file(args):
+def parse_config_file(args,config_file):
     global stv_show_path
     global stv_sync_list
     global stv_skip_list
     config = ConfigParser.ConfigParser()
-    config.read(args.config)
+    if args.config: 
+        config.read(args.config)
+    else:
+        config.read(config_file)
     
     sections = {}
 
@@ -222,6 +226,7 @@ def parse_config_file(args):
 
 
 if __name__ == "__main__":
+    interactive = False;
     arg_parser = argparse.ArgumentParser(description='Process command line args')
     for n in stv_args_list:
         arg_parser.add_argument(n)
@@ -232,12 +237,28 @@ if __name__ == "__main__":
             parse_config_file(args)
         else:
             print "Config file specified not found - " + args.config
+            interactive = True;
+    else:
+        if os.path.exists('stv-api.ini'):
+            parse_config_file(args,'stv-api.ini')
+        else:
+            print "No config file found - reverting to interactive"
+            interactive = True;
 
-    print "Saving to " + stv_show_path
-    # Loop through each DVR to process
+    if interactive:
+        stv = raw_input("Enter STV Name: ")
+        stv_sync_list[stv] = {}
+        stv_sync_list[stv]['user'] = raw_input("Enter email: ")
+        stv_sync_list[stv]['pass'] = getpass.getpass("Enter password: ")
+        stv_sync_list[stv]['shows2skip'] = "" 
+        stv_show_path = raw_input("Enter path to store shows: ")
+        #ensure we have trailing path seperator
+        if not stv_show_path.endswith(os.sep):
+            stv_show_path+=os.sep
+
     for stv in stv_sync_list.keys():
         print "Logging in to " + stv + "...."
         simple = api.SimpleTV(stv_sync_list[stv]['user'],stv_sync_list[stv]['pass'],stv)
         select_show(stv);
         del simple
-      
+
