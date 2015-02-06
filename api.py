@@ -3,12 +3,30 @@ from BeautifulSoup import BeautifulSoup
 import requests
 import json
 import re
+import time
+import datetime
 
 
 class SimpleTV:
+    def unescape_html(self, s):
+        s = s.replace("&quot;",'"')
+        s = s.replace("&apos;","'")
+        s = s.replace("&lt;","<")
+        s = s.replace("&gt;",">")
+        # this has to be last
+        s = s.replace("&amp;","&")
+        return s
+
     def __init__(self, username, password, dvr):
         self.remote = None
-        self.date = '2014%2F1%2F16+1%3A56%3A5'
+        clock = datetime.datetime.now()
+        self.date = str(clock.year) + \
+                    "%2F" + str(clock.month) + \
+                    "%2F" + str(clock.day) + \
+                    "+" + str(clock.hour) + \
+                    "%3A" + str(clock.minute) + \
+                    "%3A" + str(clock.second)
+        self.utcoffset = (time.timezone / 60)
         self.s = requests.Session()
         self._login(username, password, dvr)
 
@@ -98,12 +116,13 @@ class SimpleTV:
             info = show.find('figcaption')
             data['group_id'] = show.attrib['data-groupid']
             data['image'] = div.find('img').attrib['src']
-            data['name'] = info.find('b').text
+            data['name'] = self.unescape_html(info.find('b').text)
             data['recordings'] = info.find('span').text
             shows.append(data)
         return shows
 
     def get_episodes(self, group_id):
+        print "Finding Episodes for gid: " + group_id
         url = 'https://us-my.simple.tv/Library/ShowDetail'
         url += '?browserDateTimeUTC=' + self.date
         url += '&browserUTCOffsetMinutes=-300'
@@ -128,10 +147,10 @@ class SimpleTV:
                 links = episode.find('a', {'class': 'button-standard-watch'})
                 data['item_id'] = links['data-itemid']
                 data['instance_id'] = links['data-instanceid']
-                data['title'] = episode.h3.find(
+                data['title'] = self.unescape_html(episode.h3.find(
                     text=True,
                     recursive=False
-                    ).rstrip()
+                    ).rstrip())
             except:
                 continue
             episodes.append(data)
