@@ -12,6 +12,7 @@ import urllib3
 import os
 import ConfigParser
 import argparse
+import platform
 
 AUTO_DELETE = False
 
@@ -20,8 +21,8 @@ stv_show_path = ""
 stv_sync_list = {}
 stv_skip_list = {}
 stv_args_list = ['--config','--store','--autodelete','--interactive']
-stv_illegal_chars_list_cmn = [":"]
-stv_illegal_chars_list_win = ["|","/","?","<",">","*","\"","\\"]
+stv_illegal_chars_list_cmn = [':']
+stv_illegal_chars_list_win = ['|','/','?','<','>','*','\\','"']
 
 def select_show(stv):
     shows = simple.get_shows()
@@ -64,25 +65,31 @@ def generate_filename_menu(episodes, show):
         if episode['season'] == 0:
             #Probably a movie, or special without any season info
             #create a dir for this special and place the file in it.
+            print "No Season Info Found - Must be a Movie, or once off"
+
+            if show['name'] != episode['title']:
+                show['name'] = sanitize_filename(show['name'])
+                episode['filename'] = "{showname}/{name} - {title}".format(
+                    showname=show['name'],
+                    name=show['name'],
+                    title=sanitize_filename(episode['title']))
+            else:
+                show['name'] = sanitize_filename(show['name'])
+                episode['filename'] = "{showname}/{name}".format(
+                    showname=show['name'],
+                    name=show['name'])
+
             showdir = stv_show_path + '{name}/'.format(name=show['name'])
             try:
                 os.makedirs(showdir)
             except OSError:
                 pass
 
-            if show['name'] != episode['title']:
-                episode['filename'] = "{showname}/{name} - {title}".format(
-                    showname=show['name'],
-                    name=show['name'],
-                    title=episode['title'])
-            else:
-                episode['filename'] = "{showname}/{name}".format(
-                    showname=show['name'],
-                    name=show['name'])
-            # TODO: Need to replace all illegal chars depending on OS.
-
         else:
+            print "Found Season and Episode info - Processing..."
+            show['name'] = sanitize_filename(show['name'])
             episode['season'] = str(episode['season']).zfill(2)         # Pad with leading 0 if < 10
+            episode['episode'] = str(episode['episode']).zfill(2)        # Pad with leading 0 if < 10
             showdir = stv_show_path + "{name}/Season {season}/".format(
                 name=show['name'],
                 season=episode['season']
@@ -92,19 +99,26 @@ def generate_filename_menu(episodes, show):
             except OSError:
                 pass
             # Display season and episode numbers
-            episode['season'] = str(episode['season']).zfill(2)         # Pad with leading 0 if < 10
-            episode['episode'] = str(episode['episode']).zfill(2)        # Pad with leading 0 if < 10
             episode['filename'] = "{name}/Season {season}/{name} - S{season}E{episode} - {title}".format(
                 name=show['name'],
                 season=episode['season'],
                 episode=episode['episode'],
-                title=episode['title']
+                title=sanitize_filename(episode['title'])
                 )
             # TODO: Need to replace all illegal chars depending on OS.
-            episode['filename'] = episode['filename'].replace(":", "-")
+            # episode['filename'] = episode['filename'].replace(":", "-")
             print str(val) + ": " + episode['filename'].encode('utf-8')
     return episodes
     
+def sanitize_filename(filename):
+    clean_filename = filename
+    for n in stv_illegal_chars_list_cmn:
+        clean_filename = clean_filename.replace(n,"-")
+    if platform.system() == 'Windows':
+        for n in stv_illegal_chars_list_win:
+            clean_filename = clean_filename.replace(n,"-")
+    print "Cleaning " + filename + " to " + clean_filename
+    return clean_filename
     
 def download_episode(show, episode):
     global stv_show_path
@@ -116,6 +130,7 @@ def download_episode(show, episode):
 
     if not os.path.exists(file_name):
       url = simple.retrieve_episode_mp4(group_id, instance_id, item_id, quality)
+      print "about to fetch " + file_name + " from: " + url
       if not url:
           print "Unable to retrieve URL for " \
                 + show['name'] + " " \
@@ -123,7 +138,7 @@ def download_episode(show, episode):
                 + episode['episode'] + \
                 ". Skipping..."
           return
-      print "Downloading " + file_name
+      print "Downloading Episode: " + file_name
       (filename, headers) = urllib.urlretrieve(url, file_name)
       file_size = os.path.getsize(file_name) >> 20
       print "File size: ", file_size , "MB"
@@ -158,7 +173,7 @@ def download_all_shows(shows,stv):
             continue
         # Only download shows with recordings
         if int(show['recordings']) != 0:
-            print "\nDownloading " + show['name']
+            print "\nDownloading " + show['name'] + " gid: " + show['group_id']
             group_id = show['group_id']
             episodes = simple.get_episodes(group_id)
             episodes = generate_filename_menu(episodes, show)
