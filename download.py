@@ -13,6 +13,7 @@ import os
 import ConfigParser
 import argparse
 import platform
+import logging
 
 AUTO_DELETE = False
 
@@ -20,9 +21,15 @@ AUTO_DELETE = False
 stv_show_path = ""
 stv_sync_list = {}
 stv_skip_list = {}
-stv_args_list = ['--config','--store','--autodelete','--interactive']
+stv_args_list = ['--config','--store','--autodelete','--interactive','--logfile','--loglevel']
 stv_illegal_chars_list_cmn = [':']
 stv_illegal_chars_list_win = ['|','/','?','<','>','*','\\','"']
+
+LOGLEVELS = {'debug': logging.DEBUG,
+          'info': logging.INFO,
+          'warning': logging.WARNING,
+          'error': logging.ERROR,
+          'critical': logging.CRITICAL}
 
 def select_show(stv):
     shows = simple.get_shows()
@@ -30,6 +37,7 @@ def select_show(stv):
         # Only display shows with recordings (>0)
         if int(show['recordings']) != 0:
             print str(val) + ": " + show['name'].encode('utf-8') + " [" + show['recordings'] + " episodes]"
+            logging.info(str(val) + ": " + show['name'].encode('utf-8') + " [" + show['recordings'] + " episodes]")
     show_id = ''#raw_input("Select show (#): ")
     print "-" * 25
     if show_id.lower() == 'a' or show_id == '':
@@ -65,7 +73,7 @@ def generate_filename_menu(episodes, show):
         if episode['season'] == 0:
             #Probably a movie, or special without any season info
             #create a dir for this special and place the file in it.
-            print "No Season Info Found - Must be a Movie, or once off"
+            logging.warn("No Season Info Found - Must be a Movie, or once off")
 
             if show['name'] != episode['title']:
                 show['name'] = sanitize_filename(show['name'])
@@ -80,13 +88,15 @@ def generate_filename_menu(episodes, show):
                     name=show['name'])
 
             showdir = stv_show_path + '{name}/'.format(name=show['name'])
-            try:
-                os.makedirs(showdir)
-            except OSError:
-                pass
+            if not os.path.exists(showdir):
+                try:
+                    os.makedirs(showdir)
+                except OSError:
+                    logging.error("Unable to create directory for " + showdir)
+                    pass
 
         else:
-            print "Found Season and Episode info - Processing..."
+            logging.debug("Found Season and Episode info - Processing...")
             show['name'] = sanitize_filename(show['name'])
             episode['season'] = str(episode['season']).zfill(2)         # Pad with leading 0 if < 10
             episode['episode'] = str(episode['episode']).zfill(2)        # Pad with leading 0 if < 10
@@ -105,9 +115,8 @@ def generate_filename_menu(episodes, show):
                 episode=episode['episode'],
                 title=sanitize_filename(episode['title'])
                 )
-            # TODO: Need to replace all illegal chars depending on OS.
-            # episode['filename'] = episode['filename'].replace(":", "-")
             print str(val) + ": " + episode['filename'].encode('utf-8')
+            logging.info(str(val) + ": " + episode['filename'].encode('utf-8'))
     return episodes
     
 def sanitize_filename(filename):
@@ -117,7 +126,7 @@ def sanitize_filename(filename):
     if platform.system() == 'Windows':
         for n in stv_illegal_chars_list_win:
             clean_filename = clean_filename.replace(n,"-")
-    print "Cleaning " + filename + " to " + clean_filename
+    logging.debug("Cleaning " + filename + " to " + clean_filename)
     return clean_filename
     
 def download_episode(show, episode):
@@ -130,15 +139,16 @@ def download_episode(show, episode):
 
     if not os.path.exists(file_name):
       url = simple.retrieve_episode_mp4(group_id, instance_id, item_id, quality)
-      print "about to fetch " + file_name + " from: " + url
       if not url:
-          print "Unable to retrieve URL for " \
+          logging.error("Unable to retrieve URL for " \
                 + show['name'] + " " \
                 + episode['season'] + " " \
                 + episode['episode'] + \
-                ". Skipping..."
+                ". Skipping...")
           return
+      logging.debug("About to fetch " + file_name + " from: " + url)
       print "Downloading Episode: " + file_name
+      logging.info("Downloading Episode: " + file_name)
       (filename, headers) = urllib.urlretrieve(url, file_name)
       file_size = os.path.getsize(file_name) >> 20
       print "File size: ", file_size , "MB"
@@ -154,8 +164,9 @@ def download_episode(show, episode):
           headers = urllib3.util.make_headers(basic_auth=username + ":" + password)
           http.request('DELETE', url, headers=headers)  # Gives a SSL Cert error. Not sure why..? Need to add 'assert_hostnam$
           print "[" + episode['filename'] + "] deleted from Simple.TV"
+          logging.info("[" + episode['filename'] + "] deleted from Simple.TV")
     else:
-      print "File already exists, skipping..."
+      logging.info("File already exists, skipping...")
 
 def is_show_skipped(show, stv):
     if stv_sync_list[stv]['shows2skip']:
@@ -169,11 +180,11 @@ def download_all_shows(shows,stv):
     for val, show in enumerate(shows):
         show = shows[val]
         if is_show_skipped(show, stv): 
-            print "Skipping " + show['name'] + ": [ID]-" + show['group_id']
+            logging.info("Skipping " + show['name'] + ": [ID]-" + show['group_id'])
             continue
         # Only download shows with recordings
         if int(show['recordings']) != 0:
-            print "\nDownloading " + show['name'] + " gid: " + show['group_id']
+            logging.info("Downloading " + show['name'] + " gid: " + show['group_id'])
             group_id = show['group_id']
             episodes = simple.get_episodes(group_id)
             episodes = generate_filename_menu(episodes, show)
@@ -185,6 +196,7 @@ def parse_config_file(args,config_file):
     global stv_show_path
     global stv_sync_list
     global stv_skip_list
+    global logging
     config = ConfigParser.ConfigParser()
     if args.config: 
         config.read(args.config)
@@ -201,7 +213,6 @@ def parse_config_file(args,config_file):
 
     # Process the parent section - which DVRs to SYNC or SKIP    
     if 'STVAPI' in sections.keys():
-
         #Build up info on each STV to process
         dvr_list = sections['STVAPI']['dvr2sync'].split(',')
         for n in range(0,len(dvr_list)):
@@ -220,24 +231,47 @@ def parse_config_file(args,config_file):
                 if sections[dvr_list[n]]['dvrlogin'] in sections.keys():
                     stv_skip_list[dvr_list[n]]['user'] = sections[sections[dvr_list[n]]['dvrlogin']]['username']
                     stv_skip_list[dvr_list[n]]['pass'] = sections[sections[dvr_list[n]]['dvrlogin']]['password']
-
-    print 'Processing the following STVs'
-    for n in stv_sync_list.keys():
-        print n
-        print "Skipping the following shows:" + stv_sync_list[n]['shows2skip']
-    for n in stv_skip_list.keys():
-        print n
-        
-    if sections['STVAPI']['store']:
-        # First lets see if it was passed on the command line
-        if args.store:
-            stv_show_path = args.store
+                    
+        if sections['STVAPI']['store']:
+            # First lets see if it was passed on the command line
+            if args.store:
+                stv_show_path = args.store
+            else:
+                stv_show_path = sections['STVAPI']['store']
+            #ensure we have trailing path seperator
+            if not stv_show_path.endswith(os.sep):
+                stv_show_path+=os.sep
+            print "Storing to - " + stv_show_path
+                    
+        # Extract Logging Information
+        loglevel = 'warning'
+        if args.loglevel:
+            loglevel = args.loglevel
         else:
-            stv_show_path = sections['STVAPI']['store']
-        #ensure we have trailing path seperator
-        if not stv_show_path.endswith(os.sep):
-            stv_show_path+=os.sep
-        print "Storing to - " + stv_show_path
+            if sections['STVAPI']['loglevel']:
+                loglevel = sections['STVAPI']['loglevel']
+
+
+        if args.logfile:
+            logfile = args.logfile
+            logging.basicConfig(filename=logfile,
+                                level=LOGLEVELS.get(loglevel, logging.WARNING))
+        else:
+            if sections['STVAPI']['logfile']:
+                logfile = sections['STVAPI']['logfile']
+                logging.basicConfig(filename=logfile,
+                                    level=LOGLEVELS.get(loglevel, logging.WARNING))
+            else:
+                # Need to setup stdout error handler
+                logging.basicConfig(stream=sys.stdout,
+                                    level=LOGLEVELS.get(loglevel, logging.WARNING))
+
+    logging.info('Processing the following STVs...')
+    for n in stv_sync_list.keys():
+        logging.info(n)
+        logging.info("Skipping the following shows: \n" + stv_sync_list[n]['shows2skip'])
+    for n in stv_skip_list.keys():
+        logging.info("Skipping " + n)
 
 
 if __name__ == "__main__":
@@ -272,7 +306,7 @@ if __name__ == "__main__":
             stv_show_path+=os.sep
 
     for stv in stv_sync_list.keys():
-        print "Logging in to " + stv + "...."
+        logging.info("Logging in to " + stv + "....")
         simple = api.SimpleTV(stv_sync_list[stv]['user'],stv_sync_list[stv]['pass'],stv)
         select_show(stv);
         del simple
