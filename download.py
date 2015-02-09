@@ -14,6 +14,7 @@ import ConfigParser
 import argparse
 import platform
 import logging
+import sys
 
 AUTO_DELETE = False
 
