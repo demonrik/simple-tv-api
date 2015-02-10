@@ -284,7 +284,7 @@ if __name__ == "__main__":
     args = arg_parser.parse_args()
     if args.config:
         if os.path.exists(args.config): 
-            parse_config_file(args)
+            parse_config_file(args,"")
         else:
             print "Config file specified not found - " + args.config
             interactive = True;
