@@ -1,3 +1,8 @@
+#-------------------------------------------------------------------------------
+# This file provides a simple API for scraping the web interface to Simple TV
+# facilitating extraction of show info, episode lists, finding the MP4 file,
+# etc.
+#-------------------------------------------------------------------------------
 from xml.etree import ElementTree as et
 from BeautifulSoup import BeautifulSoup
 import requests
@@ -169,8 +174,10 @@ class SimpleTV:
         soup = BeautifulSoup(r.text)
         s = soup.find('div', {'id': 'video-player-large'})
         if self.remote:
+            logging.debug("STV is remote - settings base: " + self.remote_base)
             base = self.remote_base
         else:
+            logging.debug("STV is local - settings base: " + self.local_base)
             base = self.local_base
         req_url = base + s['data-streamlocation'] + ".refcount"
         stream_base = "/".join(req_url.split('/')[:-1]) + "/"
@@ -183,7 +190,7 @@ class SimpleTV:
                 self.remote = False
             except:
                 self.remote = True
-                return self._get_stream_refcount(group_id, instance_id, item_id)
+                return self._get_stream_urls(group_id, instance_id, item_id)
         r = self.s.get(req_url)
         logging.debug(r)
         urls = []
