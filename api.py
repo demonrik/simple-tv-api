@@ -200,15 +200,16 @@ class SimpleTV:
                 urls.append(url[1:])
                 logging.debug("Saving URL: " + url[1:])
         return {'base': stream_base, 'urls': urls}
-
         
     def retrieve_episode_mp4(self, group_id, instance_id, item_id, quality):
-        '''Specify quality using int for entry into m3u8. Typically:
-        0 = 500000, 1 = 1500000, 2 = 4500000
-        '''
         s_info = self._get_stream_urls(group_id, instance_id, item_id)
         if not s_info['urls']:
             return
-        url = s_info['base'] + s_info['urls'][int(quality)]
-        logging.debug("Fetching from: " + url)
-        return url
+        # Quality is a string indicating the bitrates.. so need to get that specific one
+        for n in range(0,len(s_info['urls'])):
+            if quality in s_info['urls'][n]:
+                file_url = s_info['base'] + s_info['urls'][n]
+                logging.debug("Fetching from: " + file_url)
+                return file_url
+        logging.error("Didn't find URL matching the quality bitrate: " + quality)
+        return
