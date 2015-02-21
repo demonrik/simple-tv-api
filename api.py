@@ -15,12 +15,13 @@ import logging
 
 class SimpleTV:
     def unescape_html(self, s):
-        s = s.replace("&quot;",'"')
-        s = s.replace("&apos;","'")
-        s = s.replace("&lt;","<")
-        s = s.replace("&gt;",">")
+        s= s.replace("&quot;",'"')
+        s= s.replace("&apos;","'")
+        s= s.replace("&lt;","<")
+        s= s.replace("&gt;",">")
+        s= s.replace("&#39;","'")
         # this has to be last
-        s = s.replace("&amp;","&")
+        s= s.replace("&amp;","&")
         return s
 
     def __init__(self, username, password, dvr):
