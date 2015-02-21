@@ -15,13 +15,14 @@ import argparse
 import platform
 import logging
 import sys
+import unicodedata
 import time
 from time import strftime
 
 AUTO_DELETE = False
 
 # Some global params to be used - am sure there is a better way to do these....
-stv_show_path = ""
+stv_show_path = u""
 stv_sync_list = {}
 stv_skip_list = {}
 stv_args_list = ['--config','--store','--autodelete','--interactive','--logfile','--loglevel','--quality']
@@ -119,14 +120,14 @@ def generate_filename_menu(episodes, show):
             except OSError:
                 pass
             # Display season and episode numbers
-            episode['filename'] = "{name}/Season {season}/{name} - S{season}E{episode} - {title}".format(
+            episode['filename'] = u"{name}/Season {season}/{name} - S{season}E{episode} - {title}".format(
                 name=show['name'],
                 season=episode['season'],
                 episode=episode['episode'],
                 title=sanitize_filename(episode['title'])
                 )
-            print str(val) + ": " + episode['filename'].encode('utf-8')
-            logging.info(str(val) + ": " + episode['filename'].encode('utf-8'))
+            print str(val) + ": " + episode['filename'].encode("utf-8")
+            logging.info(str(val) + ": " + episode['filename'].encode("utf-8"))
     return episodes
     
 def sanitize_filename(filename):
@@ -157,7 +158,7 @@ def download_episode(show, episode, quality):
                 ". Skipping...")
           return
       logging.debug("About to fetch " + file_name + " from: " + url)
-      print "Downloading Episode: " + file_name
+      print "Downloading Episode: " + file_name.encode('utf-8')
       logging.info("Downloading Episode: " + file_name)
       (filename, headers) = urllib.urlretrieve(url, file_name)
 
@@ -227,6 +228,13 @@ def download_all_shows(shows,stv):
             episodes = generate_filename_menu(episodes, show)
             for x in range(len(episodes)):
                 episode = episodes[x]
+
+                # Quick Check to see if the file is already downloaded... can save a few cycles
+                file_name = stv_show_path + episode['filename'] + '.mp4'
+                if os.path.exists(file_name):
+                    logging.info("File Already Exists: " + file_name)
+                    continue;
+
                 s_info = simple._get_stream_urls(group_id, episode['instance_id'], episode['item_id'])
                 quality = get_epsiode_quality(s_info['urls'], '0')
                 if quality == '0':
