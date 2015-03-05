@@ -233,13 +233,13 @@ def download_all_shows(shows,stv):
                 file_name = stv_show_path + episode['filename'] + '.mp4'
                 if os.path.exists(file_name):
                     logging.info("File Already Exists: " + file_name)
-                    continue;
+                    continue
 
                 s_info = simple._get_stream_urls(group_id, episode['instance_id'], episode['item_id'])
                 quality = get_epsiode_quality(s_info['urls'], '0')
                 if quality == '0':
                     logging.error('Couldn\'t find the quality required: ' + stv_quality)
-                    return
+                    continue
                 else:
                     logging.info("Selecting Quality: " + quality)
                     download_episode(show, episode, quality)
